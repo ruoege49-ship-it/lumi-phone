@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+*.pid
+*.tmp
+*.zip
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local snapshots and exported browser data.
+/versions/
+/验证/
+/首页预览*.png
+/截图-*.jpg
+/功能版02-群聊联调.jpg
+/*备份*.json
