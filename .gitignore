@@ -17,3 +17,10 @@ desktop.ini
 /截图-*.jpg
 /功能版02-群聊联调.jpg
 /*备份*.json
+/android/.gradle/
+/android/**/build/
+/android/local.properties
+/android/verification/
+/delivery/
+*.jks
+*.keystore

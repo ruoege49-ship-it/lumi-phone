@@ -1,6 +1,6 @@
 {
   "name": "lumi-phone",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "轻玻璃小手机：多角色聊天、朋友圈、日记与一起听歌。",
   "type": "module",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node serve.mjs",
-    "test": "node --test state.test.mjs features.test.mjs"
+    "test": "node --test state.test.mjs features.test.mjs platform.test.mjs",
+    "android": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1"
   }
 }

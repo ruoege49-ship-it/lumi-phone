@@ -1,17 +1,14 @@
-export function endpoint(baseUrl,kind='chat') {
-  let url;try{url=new URL(baseUrl);}catch{throw Error('请填写完整的服务地址，例如 https://你的服务/v1');}
-  if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw Error('服务地址格式不正确');
-  if(url.protocol==='http:'&&!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw Error('远程服务请使用 HTTPS 地址');
-  const suffix={chat:'chat/completions',speech:'audio/speech',transcription:'audio/transcriptions',models:'models'}[kind];
-  const base=url.href.replace(/\/+$/,'').replace(/\/(chat\/completions|audio\/speech|audio\/transcriptions|models)$/,'');
-  return `${base}/${suffix}`;
-}
+import {endpoint,prepareRequest,serviceError} from './request.mjs';
+import {isAndroid,nativeFetch} from './platform.mjs';
+export {endpoint} from './request.mjs';
 export async function callService(config,secret,kind,payload={},signal) {
   endpoint(config.baseUrl,kind);
   if(kind!=='models'&&!config.model?.trim())throw Error('请先选择或填写模型');
-  const response=await fetch('/api/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({config,secret,kind,payload}),signal:signal||AbortSignal.timeout(100000)});
+  const android=isAndroid(),request=android?prepareRequest(config,secret,kind,payload):null;
+  const response=android?await nativeFetch(request.url,request.options,signal):await fetch('/api/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({config,secret,kind,payload}),signal:signal||AbortSignal.timeout(100000)});
+  if(android&&!response.ok)throw Error(serviceError(response.status));
   if(!response.ok){const body=await response.json().catch(()=>({error:'服务暂时无法连接'}));throw Error(body.error||`请求失败（${response.status}）`);}
-  if(kind==='speech')return response.blob();
+  if(kind==='speech'){const type=response.headers.get('content-type')||'';if(!type.startsWith('audio/')&&type!=='application/octet-stream')throw Error('服务没有返回音频');return response.blob();}
   const data=await response.json();
   if(kind==='models')return data.data?.map(m=>m.id).filter(Boolean)||[];
   if(kind==='transcription')return data.text||'';

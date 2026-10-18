@@ -1,0 +1,22 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.ruoege.lumiphone'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.ruoege.lumiphone'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.2.1'
+        testInstrumentationRunner 'com.ruoege.lumiphone.SmokeInstrumentation'
+    }
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes { release { minifyEnabled false } }
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/lumiAssets')
+}
+tasks.register('syncWeb', Sync) {
+    from '../../dist'
+    into layout.buildDirectory.dir('generated/lumiAssets/web')
+}
+tasks.named('preBuild').configure { dependsOn 'syncWeb' }

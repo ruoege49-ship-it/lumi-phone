@@ -2,6 +2,7 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 const audio=await readFile(new URL('./dist/assets/afternoon.wav',import.meta.url));
+const port=Number(process.env.PORT||43152);
 let total=0;
 http.createServer(async(req,res)=>{
   if(req.url==='/checks'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({requests:total}));return;}
@@ -19,4 +20,4 @@ http.createServer(async(req,res)=>{
     else if(last.includes('写一条简短评论'))text=`${name}：我也想一起去，记得叫上我。`;
     res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({choices:[{message:{content:text}}]}));
   }catch{res.writeHead(400);res.end();}
-}).listen(43152,'127.0.0.1',()=>console.log('Local test provider: 43152'));
+}).listen(port,'127.0.0.1',()=>console.log(`Local test provider: ${port}`));

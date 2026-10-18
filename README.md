@@ -1,6 +1,16 @@
 # 轻玻璃小手机 · 功能版 02
 
-更新日期：2026-10-17。六个应用、一个音乐组件与两页桌面已经接入实际功能；首页每页一屏，支持横向滑动、鼠标拖动、页码按钮和键盘左右键。
+更新日期：2026-10-18。六个应用、一个音乐组件与两页桌面已经接入实际功能；首页每页一屏，支持横向滑动、鼠标拖动、页码按钮和键盘左右键。
+
+## Android 安装包
+
+[下载轻玻璃小手机 0.2.1 APK](https://github.com/ruoege49-ship-it/lumi-phone/releases/download/v0.2.1/lumi-phone-0.2.1.apk) · [版本说明](https://github.com/ruoege49-ship-it/lumi-phone/releases/tag/v0.2.1)
+
+支持 Android 8.0 及以上，需要保持 Android System WebView 更新。安装后可直接打开，不需要电脑启动服务。进入「设置 → API 与模型」填写自己的服务地址、模型和密钥；语音识别和朗读分别设置。
+
+安卓版保留原有桌面、头像、壁纸和全部应用，支持系统文件选择、保存备份、麦克风按需授权和系统返回键。角色、消息和附件保存在应用本地；浏览器里的数据可先导出完整备份，再在安卓应用中导入。备份排除密钥，迁移后重新填写。
+
+这是独立的新应用，包名为 `com.ruoege.lumiphone`。构建、签名和验证说明见 [Android 说明](android/README.md)。
 
 ## 运行
 
@@ -55,9 +65,10 @@ npm start
 - `dist/main.mjs`、`views.mjs`：操作流程和功能面板。
 - `dist/model.mjs`：数据、作用范围、来源和生成输入规则。
 - `dist/storage.mjs`：本地保存、附件、备份和恢复。
-- `dist/engine.mjs`、`api.mjs`、`gateway.mjs`：任务、服务请求和本地网关。
+- `dist/engine.mjs`、`api.mjs`、`request.mjs`、`gateway.mjs`：任务、共用请求规则和本地网关；`dist/platform.mjs` 接入安卓网络和文件保存。
 - `dist/state.mjs`：旧样品兼容与迁移辅助；`dist/app.js` 保留为旧版文件，当前入口不再加载它。
-- `state.test.mjs`、`features.test.mjs`：自动检查；`test-provider.mjs`：本地联调用服务。
+- `state.test.mjs`、`features.test.mjs`、`platform.test.mjs`：自动检查；`test-provider.mjs`：本地联调用服务。
+- `android/`：安卓宿主和设备检查；`scripts/build-android.ps1`：构建、签名和生成校验文件。
 - `package.json`：启动与检查入口，无第三方依赖。
 
 ## 验证记录 · 2026-10-16

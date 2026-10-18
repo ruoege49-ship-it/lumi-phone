@@ -1,6 +1,7 @@
 import * as M from './model.mjs';
 import {PhoneStore,importMedia,blobBase64} from './storage.mjs';
 import {callService,connectionFromJSON,endpoint} from './api.mjs';
+import {saveJSON} from './platform.mjs';
 import {GenerationEngine} from './engine.mjs';
 import {renderPanel,esc,icon,btn,field,meta,avatar,tasksHTML,liveRoles,roleName} from './views.mjs';
 
@@ -10,6 +11,8 @@ let state,route=null,currentChatId=null,currentChatKey=null,toastTimer,preview=n
 let homePage=0,mediaLoad=0,audioScope=null,audioTrack=null,audioReady=false,lastPlayedAt=0,playedSeconds=0,lastAudioSave=0;
 let recorder=null,recordStream=null,recordTimer=null,recordedMedia=null,recordTarget=null;
 const speechJobs=new Set();
+window.lumiBack=()=>{const viewer=document.querySelector('.image-viewer[open]');if(viewer){viewer.close();return true;}if(dialog.open){close();return true;}if(!$('#chat-view').hidden){home();return true;}if(homePage!==0){goPage(0);return true;}return false;};
+window.lumiPause=()=>{if(recorder?.state==='recording')recorder.stop();audio.pause();whenError(savePlayback)();};
 const key=()=>M.activeKey(state),scope=()=>M.scopeFor(state),role=()=>M.activeRole(state);
 const engine=new GenerationEngine(store,callService,(next,error)=>{if(error)toast(error.message);if(next){state=next;renderHome();if(!$('#chat-view').hidden)renderMessages();if(route&&['moments','diary','memories','tasks'].includes(route.name)&&!dialog.contains(document.activeElement?.closest('form')))paintPanel();}});
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4200);}
@@ -91,7 +94,7 @@ async function movePhone(roleId){
   if(audioScope)await savePlayback();audio.pause();const oldKey=key();await commit(s=>{const l=s.scopes[oldKey]?.listening.find(l=>!l.endedAt);if(l){l.endedAt=Date.now();l.seconds=(l.seconds||0)+playedSeconds;}M.switchRole(s,roleId);});playedSeconds=0;currentChatId=null;currentChatKey=null;await loadAudio();home();toast(`已进入${role().name}的小手机`);
 }
 function chooseFile(accept,multiple=false){return new Promise(resolve=>{const input=document.createElement('input');input.type='file';input.accept=accept;input.multiple=multiple;input.hidden=true;document.body.append(input);input.addEventListener('change',()=>{const files=[...input.files];input.remove();resolve(files);},{once:true});input.addEventListener('cancel',()=>{input.remove();resolve([]);},{once:true});input.click();});}
-function downloadJSON(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+const downloadJSON=saveJSON;
 async function readJSON(file,maxMB=3){if(file.size>maxMB*1024*1024)throw Error(`文件超过 ${maxMB} MB`);try{return JSON.parse(await file.text());}catch{throw Error('JSON 文件无法读取');}}
 function currentAppearance(form){const d=new FormData(form);return {...role().appearance,theme:d.get('theme'),blur:d.has('blur'),wallpaper:d.get('wallpaper'),chatBackground:d.get('chatBackground'),fontScale:Number(d.get('fontScale')),music:d.has('music')};}
 function connectionForm(){const d=new FormData($('#api-form'));return {baseUrl:String(d.get('baseUrl')).trim(),model:String(d.get('model')).trim(),temperature:Number(d.get('temperature')),maxTokens:Number(d.get('maxTokens'))};}
@@ -139,7 +142,7 @@ const actions={
   'import-role':async()=>{const [file]=await chooseFile('.json');if(!file)return;const raw=await readJSON(file),c=raw.data||raw;if(typeof c.name!=='string')throw Error('角色 JSON 需要 name 字段');show('role-form',{imported:true,values:{name:c.name,persona:[c.description||c.persona,c.personality,c.scenario].filter(Boolean).join('\n\n'),relation:c.relation||'',worldId:role()?.worldId||'daily',worldEnabled:true,avatar:'builtin-flowers',metOn:M.localDate()}});},
   'import-api':async()=>{const [file]=await chooseFile('.json');if(!file)return;show('api',{values:connectionFromJSON(await readJSON(file))});},
   'trash':()=>show('trash'),
-  export:async()=>{toast('正在整理记录和原始附件…');downloadJSON(await store.export(),`小手机备份-${M.localDate()}.json`);toast('备份已导出');},
+  export:async()=>{toast('正在整理记录和原始附件…');if(await downloadJSON(await store.export(),`小手机备份-${M.localDate()}.json`))toast('备份已导出');},
   'import-backup':async()=>{const [file]=await chooseFile('.json');if(!file)return;const bundle=await readJSON(file,150);if(bundle.format!=='lumi-phone-backup')throw Error('请选择小手机完整备份');const checked=M.validatePhone(bundle.state);for(const m of checked.media.filter(m=>!m.builtin&&!m.url))if(!bundle.attachments?.[m.id])throw Error('备份缺少附件：'+m.name);importBundle={...bundle,state:checked};show('backup-preview',{summary:{roles:checked.roles.length,scopes:Object.keys(checked.scopes).length,media:checked.media.length}});},
   'apply-backup':async()=>{if(engine.controllers.size||speechJobs.size)throw Error('请先等生成结束或停止任务');audio.pause();state=await store.restore(importBundle);importBundle=null;await loadAudio();home();toast('备份已恢复，服务密钥需重新填写');},
   'restore-points':async()=>show('restore-points',{points:await store.restorePoints()}),
@@ -158,7 +161,7 @@ Object.assign(actions,{
   'media-avatar':async el=>{await commit(s=>M.activeRole(s).avatar=el.dataset.id);toast('角色头像已更新');},
   'media-sticker':async el=>{await commit(s=>{const m=s.media.find(m=>m.id===el.dataset.id);m.category=m.category==='表情'?'照片':'表情';});paintPanel();},
   'rename-media':async el=>{const name=$('#f-mediaName').value.trim();if(!name)throw Error('请填写图片名称');await commit(s=>s.media.find(m=>m.id===el.dataset.id).name=name);paintPanel();},
-  'open-original':async el=>{const media=state.media.find(m=>m.id===el.dataset.id);const url=await store.mediaURL(media);const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.click();},
+  'open-original':async el=>{const media=state.media.find(m=>m.id===el.dataset.id);const url=await store.mediaURL(media);if(!url)return;const viewer=document.createElement('dialog');viewer.className='image-viewer';const image=document.createElement('img');image.src=url;image.alt=media?.name||'原图';const button=document.createElement('button');button.className='secondary';button.textContent='关闭原图';button.onclick=()=>viewer.close();viewer.append(image,button);viewer.addEventListener('close',()=>viewer.remove(),{once:true});document.body.append(viewer);viewer.showModal();},
   music:()=>hasActive()&&show('music'),play:()=>toggleAudio(),
   'upload-music':async()=>{const skey=key(),files=await chooseFile('audio/*',true);for(const file of files){const media=await importMedia(store,file,'音乐');await commit(s=>{s.media.push(media);s.scopes[skey].playlist.push(media.id);});}show('music');},
   'select-track':el=>selectTrack(el.dataset.id),
