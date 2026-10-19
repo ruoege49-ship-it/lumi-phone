@@ -1,4 +1,4 @@
-import {createPhone,validatePhone,BUILTIN_MEDIA,clone} from './model.mjs';
+import {createPhone,createPersonalPhone,validatePhone,BUILTIN_MEDIA,clone} from './model.mjs';
 import {STORAGE_KEY} from './state.mjs';
 const DB_NAME='lumi.functional.phone.v2';
 const request=req=>new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
@@ -8,8 +8,8 @@ export class PhoneStore {
   async open(){
     const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{for(const name of ['records','media','secrets'])req.result.createObjectStore(name);};this.db=await request(req);
     let state=await this.read();
-    if(!state){let legacy;const stored=localStorage.getItem(STORAGE_KEY);if(stored){try{legacy=JSON.parse(stored);}catch{throw Error('旧记录无法读取。原记录仍在，请先导出检查。');}}state=createPhone(legacy);await this.replace(state,false);}
-    else {state=validatePhone(state);await this.replace(state,false);}
+    if(!state){let legacy;const stored=localStorage.getItem(STORAGE_KEY);if(stored){try{legacy=JSON.parse(stored);}catch{throw Error('旧记录无法读取。原记录仍在，请先导出检查。');}}state=legacy?createPhone(legacy):createPersonalPhone();await this.replace(state,false);}
+    else {const migrating=!state.phone;state=validatePhone(state);await this.replace(state,migrating);}
     return state;
   }
   async read(){return request(this.db.transaction('records','readonly').objectStore('records').get('state'));}
@@ -27,7 +27,7 @@ export class PhoneStore {
   async export(){
     const state=validatePhone(await this.read()),attachments={};
     for(const media of state.media.filter(m=>!m.builtin&&!m.url)){const blob=await this.blob(media.id);if(!blob)throw Error(`附件缺失：${media.name}`);attachments[media.id]=await blobBase64(blob);}
-    return {format:'lumi-phone-backup',version:2,exportedAt:new Date().toISOString(),state,attachments};
+    return {format:'lumi-phone-backup',version:3,exportedAt:new Date().toISOString(),state,attachments};
   }
   async restore(bundle){
     const state=validatePhone(bundle.state),blobs=[];if(bundle.format!=='lumi-phone-backup')throw Error('备份格式不正确');

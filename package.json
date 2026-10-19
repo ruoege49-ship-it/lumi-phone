@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node serve.mjs",
-    "test": "node --test state.test.mjs features.test.mjs platform.test.mjs",
+    "test": "node --test state.test.mjs features.test.mjs platform.test.mjs navigation.test.mjs personal-phone.test.mjs",
     "android": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1"
   }
 }
